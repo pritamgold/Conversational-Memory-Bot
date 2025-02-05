@@ -1,0 +1,1 @@
+Project Title: Conversational Memory Bot – AI-Powered Photo Gallery Assistant
