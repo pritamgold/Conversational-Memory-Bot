@@ -17,13 +17,13 @@ class ImageHandler:
         self.model, self.preprocess = clip.load(model_name, device=self.device)
         self.model.eval()  # Set model to evaluation mode
 
-    def save_uploaded_image(self, file: UploadFile) -> Path:
+    async def save_uploaded_image(self, file: UploadFile) -> Path:
         """Save an uploaded image to the local storage directory."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_filename = f"{timestamp}_{file.filename}"
         file_path = self.image_dir / unique_filename
 
-        image_bytes = file.file.read()
+        image_bytes = await file.read()
         with open(file_path, "wb") as buffer:
             buffer.write(image_bytes)
 
