@@ -2,3 +2,12 @@
 .venv
 .idea
 __pycache__
+
+# Ignore images folder
+images/
+
+# Ignore database folder
+database/
+
+# Ignore specific database file
+app/database/chromadb/chroma.sqlite3

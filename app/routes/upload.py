@@ -52,23 +52,27 @@ async def upload_images(
 
         for file in files:
             # Save the uploaded image
-            file_path = await image_handler.save_uploaded_image(file)
+            unique_filename, file_path = await image_handler.save_uploaded_image(file)
 
-            # Open image and generate a textual description
+            # Open image and generate a description + tags
             image = Image.open(file_path).convert("RGB")
-            description = image_handler.generate_description(image)
+            description_data = image_handler.generate_description_and_tags(image)
+
+            # Extract description and tags
+            description = description_data["description"]
+            tags = description_data["tags"]
 
             # Generate image embeddings
             embedding = image_handler.get_image_embedding(file_path)
 
             # Store metadata in ChromaDB
-            image_handler.store_image_metadata(collection, file_path, embedding, description)
+            image_handler.store_image_metadata(collection, unique_filename, file_path, embedding, description, tags)
 
             # Append result for response
             results.append({
-                "filename": file.filename,
-                "path": str(file_path),
+                "id": unique_filename,
                 "description": description,
+                "tags": tags,
                 "uri": str(file_path)
             })
 
