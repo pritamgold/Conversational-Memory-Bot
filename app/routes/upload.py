@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from PIL import Image
 from fastapi import APIRouter, Request, UploadFile, File, HTTPException, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -7,17 +8,18 @@ from fastapi.templating import Jinja2Templates
 from app.dependencies import get_collection
 from app.core.image_handler import ImageHandler
 
-# Define image storage directory
+
+# Define image storage directory to upload
 IMAGE_DIR = Path(__file__).resolve().parent.parent / "images"
-IMAGE_DIR.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
+try:
+    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    print(f"Error creating image directory: {e}")
 
-# Initialize ImageHandler for image processing and embedding
-image_handler = ImageHandler(IMAGE_DIR)
 
-# Initialize FastAPI router
+# Initialize
 router = APIRouter()
-
-# Set up Jinja2 templates for rendering HTML pages
+image_handler = ImageHandler(IMAGE_DIR)
 templates = Jinja2Templates(directory="templates")
 
 
