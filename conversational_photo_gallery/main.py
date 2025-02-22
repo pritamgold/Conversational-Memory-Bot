@@ -5,7 +5,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-# Add the parent directory of the app directory to the Python path
+# Add the parent directory of the conversational_photo_gallery directory to the Python path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 

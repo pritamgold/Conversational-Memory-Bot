@@ -5,8 +5,8 @@ from fastapi import APIRouter, Request, UploadFile, File, HTTPException, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from app.dependencies import get_collection
-from app.core.image_handler import ImageHandler
+from conversational_photo_gallery.dependencies import get_collection
+from conversational_photo_gallery.services.image_handler import ImageHandler
 
 
 # Define image storage directory to upload
