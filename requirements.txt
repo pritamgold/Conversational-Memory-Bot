@@ -6,3 +6,5 @@ chromadb
 git+https://github.com/openai/CLIP.git
 google-generativeai
 python-dotenv
+ultralytics
+sentence_transformers
