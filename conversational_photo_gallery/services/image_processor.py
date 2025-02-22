@@ -1,9 +1,9 @@
 import os
-from typing import List
+from typing import List, Optional
 
 import google.generativeai as genai
 from dotenv import load_dotenv
-from PIL import Image
+from PIL import Image, ExifTags
 from sentence_transformers import SentenceTransformer
 from ultralytics import YOLO
 
@@ -15,7 +15,7 @@ load_dotenv()
 
 
 class ImageProcessor:
-    """Processes images to generate embeddings and metadata."""
+    """Processes images to generate embeddings, metadata, and descriptions."""
 
     def __init__(self):
         """Initialize ImageProcessor with CLIP, YOLO, and Gemini models.
@@ -86,7 +86,7 @@ class ImageProcessor:
         """
         prompt = (
             "Generate a comma-separated list of relevant tags for this image, "
-            "focusing on objects, scenes, and activities."
+            "focusing on activities, objects and scenes."
         )
         response = self._query_gemini(image_path, prompt)
         return [tag.strip() for tag in response.split(',')]
@@ -111,6 +111,50 @@ class ImageProcessor:
         except Exception as e:
             raise ValueError(f"Failed to detect objects in {image_path}: {e}")
 
+    def detect_dominant_color(self, image_path: str) -> str:
+        """Detect the dominant color in the image using the Gemini model.
+
+        Args:
+            image_path (str): Path to the image file.
+
+        Returns:
+            str: Name of the dominant color (e.g., 'red').
+
+        Raises:
+            ValueError: If color detection fails.
+        """
+        prompt = (
+            "Identify the dominant color in this image and return only the color name "
+            "(e.g., 'red', 'blue') without additional text."
+        )
+        return self._query_gemini(image_path, prompt)
+
+    def extract_exif_data(self, image_path: str) -> Optional[str]:
+        """Extract date from image EXIF data.
+
+        Args:
+            image_path (str): Path to the image file.
+
+        Returns:
+            Optional[str]: Date string from EXIF data, or None if not found.
+
+        Raises:
+            ValueError: If image loading fails.
+        """
+        try:
+            image = Image.open(image_path)
+            exif = image.getexif()
+            date = None
+
+            if exif:
+                date_tag = 36867  # EXIF tag for DateTimeOriginal
+                if date_tag in exif:
+                    date = exif[date_tag]
+
+            return date
+        except Exception as e:
+            raise ValueError(f"Failed to extract EXIF data from {image_path}: {e}")
+
     def _query_gemini(self, image_path: str, prompt: str) -> str:
         """Query the Gemini model with an image and prompt.
 
@@ -130,6 +174,6 @@ class ImageProcessor:
             response = self.gemini_model.generate_content(
                 [prompt, {"mime_type": "image/jpeg", "data": image_data}]
             )
-            return response.text
+            return response.text.strip()
         except Exception as e:
             raise ValueError(f"Failed to query Gemini for {image_path}: {e}")
