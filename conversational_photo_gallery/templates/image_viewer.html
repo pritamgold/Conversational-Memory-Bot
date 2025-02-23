@@ -25,14 +25,36 @@
             <div class="image-info">
                 {% if image.description %}
                 <div class="description">
-                    <p>{{ image.description }}</p>
+                    <p><strong>Description:</strong> {{ image.description }}</p>
                 </div>
                 {% endif %}
 
                 {% if image.tags %}
                 <div class="tags">
+                    <p><strong>Tags:</strong></p>
                     {% for tag in image.tags %}
                     <span class="tag">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if image.date %}
+                <div class="date">
+                    <p><strong>Date:</strong> {{ image.date }}</p>
+                </div>
+                {% endif %}
+
+                {% if image.dominant_color %}
+                <div class="dominant-color">
+                    <p><strong>Dominant Color:</strong> {{ image.dominant_color }}</p>
+                </div>
+                {% endif %}
+
+                {% if image.objects %}
+                <div class="objects">
+                    <p><strong>Detected Objects:</strong></p>
+                    {% for obj in image.objects %}
+                    <span class="tag">{{ obj }}</span>
                     {% endfor %}
                 </div>
                 {% endif %}
