@@ -1,18 +1,26 @@
-# config.py
 from pathlib import Path
 
-# Image storage directory, one level up from this file (e.g., project/conversational_memory_bot/images/)
+from fastapi.templating import Jinja2Templates
+
+
+# Image storage directory, one level up from this file (e.g., conversational_photo_gallery/images/)
 IMAGE_DIR = Path(__file__).resolve().parent / "images"
 
-# Database storage directory (e.g., project/conversational_memory_bot/database/chromadb/)
+# Database storage directory (e.g., conversational_photo_gallery/database/chromadb/)
 DATABASE_PATH = Path(__file__).resolve().parent / "database" / "chromadb"
+
+# Directory for storing model files (e.g., conversational_photo_gallery/models/)
+MODELS_DIR = Path(__file__).resolve().parent / "models"
+YOLOV8S_PATH = MODELS_DIR / "yolov8s.pt"
 
 # ChromaDB collection name for image embeddings
 COLLECTION_NAME = "image_embeddings"
 
-# Directory for storing model files (e.g., project/conversational_memory_bot/models/)
-MODELS_DIR = Path(__file__).resolve().parent / "models"
-YOLOV8S_PATH = MODELS_DIR / "yolov8s.pt"
+# Jinja2 templates configuration
+try:
+    TEMPLATES = Jinja2Templates(directory="templates")
+except Exception as e:
+    raise RuntimeError(f"Failed to initialize Jinja2 templates: {e}")
 
 # Ensure directories exist at module import time
 try:
