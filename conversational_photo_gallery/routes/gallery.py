@@ -1,41 +1,47 @@
 from os.path import basename
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 
+from conversational_photo_gallery.config import TEMPLATES
 from conversational_photo_gallery.dependencies import get_collection
 
-# Set up Jinja2 templates
-templates = Jinja2Templates(directory="templates")
 
-# Initialize router
 router = APIRouter()
 
 
 @router.get("", response_class=HTMLResponse)
 async def gallery(request: Request, collection=Depends(get_collection)) -> HTMLResponse:
-    """
-    Retrieve all image file paths and metadata from ChromaDB.
+    """Retrieve all image file paths and metadata from ChromaDB.
 
     Args:
         request (Request): FastAPI request object.
-        collection: Dependency injection for ChromaDB collection.
+        collection: ChromaDB collection dependency.
 
     Returns:
         HTMLResponse: Rendered gallery template with image data.
-    """
-    results = collection.get()
-    images_data = [
-        {
-            "url": f"/images/{basename(metadata['file_path'])}",
-            "id": image_id  # Unique filename
-        }
-        for metadata, image_id in zip(results.get("metadatas", []), results.get("ids", []))
-        if "file_path" in metadata
-    ]
 
-    return templates.TemplateResponse(
-        "gallery.html",
-        {"request": request, "images": images_data}
-    )
+    Raises:
+        HTTPException: If retrieving image data fails.
+    """
+    try:
+        # Fetch all data from ChromaDB
+        results = collection.get(include=["metadatas"])
+
+        # Extract image paths (IDs) and prepare data for template
+        images_data = [
+            {
+                "url": f"/images/{basename(image_id)}",  # Relative URL from absolute path
+                "id": basename(image_id)  # Use filename as ID for routing
+            }
+            for image_id in results.get("ids", [])
+        ]
+
+        return TEMPLATES.TemplateResponse(
+            "gallery.html",
+            {"request": request, "images": images_data}
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve gallery images: {str(e)}"
+        )
