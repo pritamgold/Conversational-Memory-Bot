@@ -149,4 +149,107 @@ async def chat(
 
     # --- MULTIMODAL SEARCH (BOTH TEXT AND IMAGE) ---
     if query and image:
-        raise HTTPException(status_code=501, detail="Multimodal search not implemented yet.")
+        try:
+            # Step 1: Decide if retrieval is needed using the text query
+            should_retrieve = retrieve_decision(query)
+
+            # Step 2: No retrieval - send query and image to LLM for response
+            if not should_retrieve:
+                from conversational_photo_gallery.services.file_manager import FileManager
+                file_manager = FileManager()
+                image_path = file_manager.save_image(image)
+
+                prompt = f"User query: '{query}'\nRespond based on this query and the provided image."
+                with open(image_path, "rb") as image_file:
+                    image_data = image_file.read()
+                response = llm_service.generate_response([
+                    prompt,
+                    {"mime_type": "image/jpeg", "data": image_data}
+                ])
+
+                os.remove(image_path)  # Clean up temporary file
+                return JSONResponse(content={"response": response})
+
+            # Step 3: Retrieval - retrieve results separately and combine
+            else:
+                from conversational_photo_gallery.services.file_manager import FileManager
+                file_manager = FileManager()
+                image_path = file_manager.save_image(image)
+
+                # Generate embeddings
+                text_embedding = image_processor.generate_text_embedding(query)
+                image_embedding = image_processor.generate_embedding(image_path)
+
+                # Retrieve results for text query
+                text_results = collection.query(
+                    query_embeddings=[text_embedding],
+                    n_results=n_results,
+                )
+                text_image_ids = text_results['ids'][0]
+                text_metadatas = text_results['metadatas'][0]
+
+                # Retrieve results for image
+                image_results = collection.query(
+                    query_embeddings=[image_embedding],
+                    n_results=n_results,
+                )
+                image_image_ids = image_results['ids'][0]
+                image_metadatas = image_results['metadatas'][0]
+
+                # Combine results (union of image IDs with metadata)
+                combined_image_ids = list(set(text_image_ids + image_image_ids))
+                combined_metadatas = []
+                for img_id in combined_image_ids:
+                    if img_id in text_image_ids:
+                        idx = text_image_ids.index(img_id)
+                        combined_metadatas.append(text_metadatas[idx])
+                    elif img_id in image_image_ids:
+                        idx = image_image_ids.index(img_id)
+                        combined_metadatas.append(image_metadatas[idx])
+
+                # Format image information for LLM
+                image_info = [
+                    {
+                        "id": img_id,
+                        "description": meta.get("description", ""),
+                        "tags": meta.get("tags", "")
+                    }
+                    for img_id, meta in zip(combined_image_ids, combined_metadatas)
+                ]
+
+                # Prompt LLM to select relevant images
+                prompt = (
+                    f"User query: '{query}'\n\nHere are some images retrieved based "
+                    f"on the query and the uploaded image:\n"
+                )
+                for idx, info in enumerate(image_info, 1):
+                    prompt += f"{idx}. Description: {info['description']}, Tags: {info['tags']}\n"
+                prompt += (
+                    "\nBased on the query and the uploaded image, select the most relevant images "
+                    "to show. Respond with the numbers of the images to display (e.g., '1,3')."
+                )
+
+                response = llm_service.generate_response(prompt)
+                selected_indices = [
+                    int(idx) for idx in response.split(',') if idx.strip().isdigit()
+                ]
+                selected_image_ids = [
+                    image_info[idx - 1]['id'] for idx in selected_indices
+                    if 1 <= idx <= len(image_info)
+                ]
+
+                # Clean up temporary file
+                os.remove(image_path)
+
+                # Prepare response with image URLs
+                image_urls = [f"/images/{os.path.basename(img_id)}" for img_id in selected_image_ids]
+                return JSONResponse(content={
+                    "response": "Here are some relevant images based on your query and uploaded image:",
+                    "images": image_urls
+                })
+
+        except Exception as e:
+            # Clean up in case of failure
+            if 'image_path' in locals() and os.path.exists(image_path):
+                os.remove(image_path)
+            raise HTTPException(status_code=500, detail=f"Multimodal search error: {e}")
