@@ -113,9 +113,39 @@ async def chat(
                 "images": image_urls
             })
 
-    # --- IMAGE-ONLY SEARCH ---
     if image and not query:
-        raise HTTPException(status_code=501, detail="Image-only search not implemented yet.")
+        try:
+            # Save the uploaded image temporarily using FileManager
+            from conversational_photo_gallery.services.file_manager import FileManager
+            file_manager = FileManager()
+            image_path = file_manager.save_image(image)
+
+            # Generate a description using LLMService
+            prompt = (
+                "Provide a concise, detailed description of this image in 2-3 sentences, "
+                "focusing on key objects, actions, colors, and the overall scene."
+            )
+            with open(image_path, "rb") as image_file:
+                image_data = image_file.read()
+            description = llm_service.generate_response([
+                prompt,
+                {"mime_type": "image/jpeg", "data": image_data}
+            ])
+
+            # Clean up the temporary file
+            os.remove(image_path)
+
+            # Return description and ask user about similar images
+            response_message = (
+                f"{description}\n\nWould you like to see similar images from the gallery?"
+            )
+            return JSONResponse(content={"response": response_message})
+
+        except Exception as e:
+            # Clean up in case of failure
+            if 'image_path' in locals() and os.path.exists(image_path):
+                os.remove(image_path)
+            raise HTTPException(status_code=500, detail=f"Image-only search error: {e}")
 
     # --- MULTIMODAL SEARCH (BOTH TEXT AND IMAGE) ---
     if query and image:
