@@ -14,6 +14,7 @@ from routes import homepage, gallery, image_viewer, chat, upload
 
 app = FastAPI()
 
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/images", StaticFiles(directory="images"), name="images")
 

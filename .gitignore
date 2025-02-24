@@ -9,5 +9,8 @@ images/
 # Ignore database folder
 database/
 
+# Ignore models folder
+models/
+
 # Ignore specific database file
 app/database/chromadb/chroma.sqlite3
