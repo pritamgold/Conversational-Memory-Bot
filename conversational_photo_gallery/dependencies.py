@@ -1,12 +1,13 @@
 import chromadb
-from pathlib import Path
 
-# Define database path
-DATABASE_PATH = Path(__file__).resolve().parent / "database/chromadb"
+from conversational_photo_gallery.config import DATABASE_PATH, COLLECTION_NAME
 
 
 def get_collection():
-    """Initialize ChromaDB collection without using its integrated embedding function."""
-    client = chromadb.PersistentClient(path=str(DATABASE_PATH))
+    """Initialize and return the ChromaDB collection for image embeddings.
 
-    return client.get_or_create_collection(name="image_embeddings")
+    Returns:
+        chromadb.Collection: The configured collection instance.
+    """
+    client = chromadb.PersistentClient(path=str(DATABASE_PATH))
+    return client.get_or_create_collection(name=COLLECTION_NAME)

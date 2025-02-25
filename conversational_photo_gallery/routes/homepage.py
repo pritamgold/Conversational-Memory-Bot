@@ -1,14 +1,21 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+
+from conversational_photo_gallery.config import TEMPLATES
 
 router = APIRouter()
-
-# Set up Jinja2 templates
-templates = Jinja2Templates(directory="templates")
 
 
 # Homepage route
 @router.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    """
+    Renders the homepage.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        An HTML response rendering the index.html template.
+    """
+    return TEMPLATES.TemplateResponse("index.html", {"request": request})
