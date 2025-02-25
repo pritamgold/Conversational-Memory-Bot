@@ -2,13 +2,11 @@ from os.path import basename, join
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
-
 from conversational_photo_gallery.config import IMAGE_DIR, TEMPLATES
 from conversational_photo_gallery.dependencies import get_collection
-
+from conversational_photo_gallery.models import ImageMetadata
 
 router = APIRouter()
-
 
 @router.get("/{image_id}", response_class=HTMLResponse)
 async def image_viewer(
@@ -46,22 +44,23 @@ async def image_viewer(
         user_tags = metadata.get("user_tags", "").split(",")
         combined_tags = [tag.strip() for tag in tags + user_tags if tag.strip()]
 
-        image_data = {
-            "url": f"/images/{image_id}",  # Relative URL for image
-            "description": metadata.get("description", "No description available"),
-            "tags": combined_tags,
-            "date": metadata.get("date", "No date available"),
-            "dominant_color": metadata.get("dominant_color", "Unknown"),
-            "objects": metadata.get("objects", "").split(",") if metadata.get("objects") else [],
-            "id": image_id  # Filename for reference
-        }
+        # Create Pydantic model instance
+        image_data = ImageMetadata(
+            url=f"/images/{image_id}",
+            description=metadata.get("description", "No description available"),
+            tags=combined_tags,
+            date=metadata.get("date", "No date available"),
+            dominant_color=metadata.get("dominant_color", "Unknown"),
+            objects=metadata.get("objects", "").split(",") if metadata.get("objects") else [],
+            id=image_id
+        )
 
         return TEMPLATES.TemplateResponse(
             "image_viewer.html",
-            {"request": request, "image": image_data}
+            {"request": request, "image": image_data.dict()}  # Convert to dict for template
         )
     except HTTPException as e:
-        raise e  # Re-raise 404 from not found
+        raise e
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to retrieve image details: {str(e)}"

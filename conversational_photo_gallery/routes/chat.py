@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from conversational_photo_gallery.config import TEMPLATES
 from conversational_photo_gallery.dependencies import get_collection
 from conversational_photo_gallery.services.chat_handler import ChatHandler
+from conversational_photo_gallery.models import ChatResponse
 
 router = APIRouter()
 
@@ -22,13 +23,13 @@ async def chat(request: Request):
     return TEMPLATES.TemplateResponse("chat.html", {"request": request})
 
 
-@router.post("/")
+@router.post("/", response_model=ChatResponse)
 async def chat(
     request: Request,
     query: str = Form(None),
     image: UploadFile = File(None),
     collection=Depends(get_collection),
-):
+) -> ChatResponse:
     """Handle chat queries with text, image, or both."""
     if not query and not image:
         raise HTTPException(
