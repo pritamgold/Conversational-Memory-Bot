@@ -1,16 +1,11 @@
-# conversational_photo_gallery/routes/upload.py
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 
 from conversational_photo_gallery.config import TEMPLATES
+from conversational_photo_gallery.models import UploadResponse
 from conversational_photo_gallery.services.image_uploader import ImageUploader
 
-
-router = APIRouter()
-try:
-    uploader = ImageUploader()
-except Exception as e:
-    raise RuntimeError(f"Failed to initialize router dependencies: {e}")
+router = APIRouter(prefix="/upload", tags=["upload"])
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -18,7 +13,7 @@ async def upload_page(request: Request) -> HTMLResponse:
     """Render the image upload page.
 
     Args:
-        request (Request): The incoming HTTP request.
+        request: The incoming HTTP request object from FastAPI.
 
     Returns:
         HTMLResponse: The rendered upload.html template.
@@ -29,23 +24,26 @@ async def upload_page(request: Request) -> HTMLResponse:
     try:
         return TEMPLATES.TemplateResponse("upload.html", {"request": request})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to render upload page: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to render upload page: {e}"
+        )
 
 
-@router.post("/")
-async def upload_images(files: list[UploadFile] = File(...)) -> dict:
-    """Upload one or multiple images and process them individually to store in ChromaDB.
+@router.post("/", response_model=UploadResponse)
+async def upload_images(files: list[UploadFile] = File(...)) -> UploadResponse:
+    """Upload one or multiple images and process them for storage in ChromaDB.
 
     Args:
-        files (list[UploadFile]): List of image files to upload (required).
+        files: A list of image files to upload, provided as UploadFile objects.
 
     Returns:
-        dict: Success message if all images upload successfully.
+        UploadResponse: A Pydantic model containing a success message.
 
     Raises:
         HTTPException: If any image upload fails or processing encounters an error.
     """
     try:
+        uploader = ImageUploader()  # Create ImageUploader instance here
         errors = []
 
         for upload_file in files:
@@ -59,8 +57,12 @@ async def upload_images(files: list[UploadFile] = File(...)) -> dict:
             error_message = "Error while uploading: " + "; ".join(errors)
             raise HTTPException(status_code=400, detail=error_message)
 
-        message = ("Image uploaded successfully" if num_files == 1 else "Images uploaded successfully")
-        return {"message": message}
+        message = (
+            "Image uploaded successfully"
+            if num_files == 1
+            else "Images uploaded successfully"
+        )
+        return UploadResponse(message=message)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Unexpected error during upload: {str(e)}"
