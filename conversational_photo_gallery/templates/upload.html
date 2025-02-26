@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
         statusText.textContent = 'Uploading...';
 
         try {
-            const response = await fetch('/upload-image/', {
+            const response = await fetch('/upload/', {
                 method: 'POST',
                 body: formData
             });
