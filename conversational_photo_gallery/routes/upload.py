@@ -1,3 +1,4 @@
+import time
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
@@ -5,7 +6,7 @@ from conversational_photo_gallery.config import TEMPLATES
 from conversational_photo_gallery.models import UploadResponse
 from conversational_photo_gallery.services.image_uploader import ImageUploader
 
-router = APIRouter(prefix="/upload", tags=["upload"])
+router = APIRouter()
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -43,14 +44,17 @@ async def upload_images(files: list[UploadFile] = File(...)) -> UploadResponse:
         HTTPException: If any image upload fails or processing encounters an error.
     """
     try:
-        uploader = ImageUploader()  # Create ImageUploader instance here
+        uploader = ImageUploader()
         errors = []
-
+        min_delay = 5
         for upload_file in files:
+            start_time = time.time()
             try:
                 uploader.upload(upload_file)
             except ValueError as e:
                 errors.append(f"Failed to upload {upload_file.filename}: {str(e)}")
+            delay_needed = max(0.0, min_delay - (time.time() - start_time))
+            time.sleep(delay_needed)
 
         num_files = len(files)
         if errors:
