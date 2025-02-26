@@ -2,8 +2,8 @@ from typing import Dict, List, Tuple
 
 from fastapi import UploadFile
 
+from conversational_photo_gallery.dependencies import get_embeddings_generator
 from conversational_photo_gallery.services.database_manager import DatabaseManager
-from conversational_photo_gallery.services.embedding_generator import EmbeddingGenerator
 from conversational_photo_gallery.services.file_manager import FileManager
 from conversational_photo_gallery.services.image_processor import ImageProcessor
 
@@ -20,7 +20,7 @@ class ImageUploader:
         try:
             self.db_manager = DatabaseManager()
             self.image_processor = ImageProcessor()
-            self.embedding_generator = EmbeddingGenerator()
+            self.embedding_generator = get_embeddings_generator()
             self.file_manager = FileManager()
         except Exception as e:
             raise RuntimeError(f"Failed to initialize ImageUploader: {e}")

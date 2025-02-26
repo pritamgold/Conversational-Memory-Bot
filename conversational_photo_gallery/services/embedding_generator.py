@@ -6,13 +6,17 @@ from sentence_transformers import SentenceTransformer
 
 class EmbeddingGenerator:
     """Handles generation of CLIP embeddings for text and images."""
+    _instance = None  # Singleton instance
 
-    def __init__(self) -> None:
-        """Initialize the EmbeddingGenerator with the CLIP model.
+    def __new__(cls):
+        """Ensure a single instance of EmbeddingGenerator."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialize()  # Initialize only once
+        return cls._instance
 
-        Raises:
-            RuntimeError: If CLIP model initialization fails.
-        """
+    def _initialize(self) -> None:
+        """Initialize the EmbeddingGenerator with the CLIP model."""
         try:
             self.clip_model = SentenceTransformer("clip-ViT-B-32")
         except Exception as e:
