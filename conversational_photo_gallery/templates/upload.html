@@ -1,32 +1,44 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="upload-container">
-    <h2 class="upload-heading">Upload Images</h2>
-    
-    <div class="upload-area" id="dropZone">
-        <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
-        <div class="upload-prompt">
-            <span class="upload-icon">📁</span>
-            <p>Drag and drop images here or click to select files</p>
-        </div>
-    </div>
+<div class="content">
+    <div class="upload-container">
+        <h2 class="upload-heading">Upload Images</h2>
 
-    <div id="fileList" class="file-list"></div>
-    
-    <div class="upload-controls">
-        <button id="uploadButton" class="upload-btn" disabled>Upload Images</button>
-    </div>
-
-    <div id="uploadStatus" class="upload-status" style="display: none;">
-        <div class="progress-bar">
-            <div id="progressFill" class="progress-fill"></div>
+        <div class="upload-area" id="dropZone">
+            <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+            <div class="upload-prompt">
+                <span class="upload-icon">📁</span>
+                <p>Drag and drop images here or click to select files</p>
+            </div>
         </div>
-        <p id="statusText"></p>
+
+        <div id="fileList" class="file-list"></div>
+
+        <div class="upload-controls">
+            <button id="uploadButton" class="upload-btn" disabled>Upload Images</button>
+        </div>
+
+        <div id="uploadStatus" class="upload-status" style="display: none;">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <p id="statusText"></p>
+        </div>
     </div>
 </div>
 
 <style>
+    /* Content Styling */
+    .content {
+      width: 90%;
+      max-width: 1000px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
     .upload-container {
         max-width: 800px;
         margin: 2rem auto;

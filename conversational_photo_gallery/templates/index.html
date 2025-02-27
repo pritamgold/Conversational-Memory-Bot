@@ -2,7 +2,9 @@
 
 {% block content %}
 <!-- Hero Section -->
-<section class="hero">
+<div class="content">
+
+ <section class="hero">
     <div class="hero-content">
         <h1>Your Photos, Now Conversations</h1>
         <p>Interact with your personal photo gallery through natural conversations. Ask questions, explore memories, and discover your photos in an entirely new way.</p>
@@ -65,8 +67,18 @@
         </div>
     </div>
 </section>
-
+</div>
 <style>
+    /* Content Styling */
+    .content {
+      width: 90%;
+      max-width: 1000px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
     .hero {
         display: grid;
         grid-template-columns: 1fr 1fr;
