@@ -124,10 +124,11 @@ YSD_B4_AI_Pritam/
 │   ├── static/             # Static files
 │   ├── images/             # Directory for uploaded images
 │   ├── database/           # ChromaDB storage
-│   │   ├── chromadb/
+│   │   └── chromadb/
+│   └── .env                # Environment variables
 ├── requirements.txt    # Python dependencies
-├── .gitignore          # gitignore file
-└── .env                # Environment variables
+└── .gitignore          # gitignore file
+            
 ```
 
 
