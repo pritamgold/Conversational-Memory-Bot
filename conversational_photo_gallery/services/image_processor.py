@@ -1,9 +1,7 @@
 from typing import List, Optional
 
 from PIL import Image, ExifTags
-from ultralytics import YOLO
 
-from conversational_photo_gallery.config import YOLOV8S_PATH
 from conversational_photo_gallery.services.llm_service import LLMService
 
 
@@ -17,7 +15,6 @@ class ImageProcessor:
             RuntimeError: If model initialization fails.
         """
         try:
-            self.yolo_model = YOLO(YOLOV8S_PATH)
             self.llm_service = LLMService()
         except Exception as e:
             raise RuntimeError(f"Failed to initialize ImageProcessor: {e}")
@@ -60,26 +57,6 @@ class ImageProcessor:
         )
         response = self.llm_service.generate_image_response(image_path, prompt)
         return [tag.strip() for tag in response.split(",")]
-
-    def detect_objects(self, image_path: str) -> List[str]:
-        """Detect objects in the image using YOLOv8.
-
-        Args:
-            image_path: Path to the image file.
-
-        Returns:
-            List[str]: List of unique object labels detected.
-
-        Raises:
-            ValueError: If object detection fails.
-        """
-        try:
-            results = self.yolo_model(image_path)
-            detections = results[0].boxes.data
-            labels = [self.yolo_model.names[int(cls)] for cls in detections[:, -1]]
-            return list(set(labels))
-        except Exception as e:
-            raise ValueError(f"Failed to detect objects in {image_path}: {e}")
 
     def detect_dominant_color(self, image_path: str) -> str:
         """Detect the dominant color in the image using the Gemini model.

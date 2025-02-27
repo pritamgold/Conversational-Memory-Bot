@@ -1,4 +1,3 @@
-import time
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
@@ -46,15 +45,11 @@ async def upload_images(files: list[UploadFile] = File(...)) -> UploadResponse:
     try:
         uploader = ImageUploader()
         errors = []
-        min_delay = 5
         for upload_file in files:
-            start_time = time.time()
             try:
                 uploader.upload(upload_file)
             except ValueError as e:
                 errors.append(f"Failed to upload {upload_file.filename}: {str(e)}")
-            delay_needed = max(0.0, min_delay - (time.time() - start_time))
-            time.sleep(delay_needed)
 
         num_files = len(files)
         if errors:

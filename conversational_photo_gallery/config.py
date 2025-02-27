@@ -9,10 +9,6 @@ IMAGE_DIR = Path(__file__).resolve().parent / "images"
 # Database storage directory (e.g., conversational_photo_gallery/database/chromadb/)
 DATABASE_PATH = Path(__file__).resolve().parent / "database" / "chromadb"
 
-# Directory for storing model files (e.g., conversational_photo_gallery/models/)
-MODELS_DIR = Path(__file__).resolve().parent / "models"
-YOLOV8S_PATH = MODELS_DIR / "yolov8s.pt"
-
 # ChromaDB collection name for image embeddings
 COLLECTION_NAME = "image_embeddings"
 
@@ -32,8 +28,3 @@ try:
     DATABASE_PATH.mkdir(parents=True, exist_ok=True)
 except OSError as e:
     print(f"Error creating database directory {DATABASE_PATH}: {e}")
-
-try:
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
-except OSError as e:
-    print(f"Error creating models directory {MODELS_DIR}: {e}")

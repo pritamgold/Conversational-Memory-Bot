@@ -43,7 +43,6 @@ class ImageUploader:
             tags = self.image_processor.generate_tags(image_path)
             date = self.image_processor.extract_exif_data(image_path)
             dominant_color = self.image_processor.detect_dominant_color(image_path)
-            objects = self.image_processor.detect_objects(image_path)
 
             metadata = {
                 "description": description,
@@ -51,7 +50,6 @@ class ImageUploader:
                 "date": date if date else "",
                 "user_tags": "",
                 "dominant_color": dominant_color,
-                "objects": ",".join(objects),
             }
             return embedding, metadata
         except Exception as e:
