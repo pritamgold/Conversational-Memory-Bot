@@ -1,5 +1,5 @@
 from conversational_photo_gallery.services.llm_service import LLMService
-
+from conversational_photo_gallery.constants import PROMPT_TEMPLATES
 
 def retrieve_decision(query: str) -> bool:
     """Decide if the query requires retrieving images from the database using an LLM.
@@ -11,17 +11,14 @@ def retrieve_decision(query: str) -> bool:
         bool: True if retrieval is needed, False if conversational response is sufficient.
 
     Raises:
-        ValueError: If the LLM response is not 'yes' or 'no'.
+        ValueError: If the LLM response is not 'yes' or 'no' or if an error occurs.
     """
     llm_service = LLMService()  # Instantiate the service
-    prompt = (
-        f"Determine if the following query requires retrieving images from a database. "
-        f"Answer only with 'yes' if the query implies retrieving images, otherwise 'no'. "
-        f"Query: '{query}'"
-    )
-    decision = llm_service.generate_response(prompt).lower()
-
-    if decision not in ['yes', 'no']:
-        raise ValueError(f"Unexpected LLM response: {decision}")
-
-    return decision == 'yes'
+    prompt = PROMPT_TEMPLATES["RETRIEVED_DECISION_PROMPT"].format(query=query)
+    try:
+        decision = llm_service.generate_response(prompt).lower().strip()
+        if decision not in ['yes', 'no']:
+            raise ValueError(f"Unexpected LLM response: '{decision}'")
+        return decision == 'yes'
+    except Exception as e:
+        raise ValueError(f"Error in retrieval decision: {str(e)}")

@@ -9,6 +9,7 @@ from conversational_photo_gallery.services.embedding_generator import EmbeddingG
 from conversational_photo_gallery.services.file_manager import FileManager
 from conversational_photo_gallery.services.image_processor import ImageProcessor
 from conversational_photo_gallery.services.llm_service import LLMService
+from conversational_photo_gallery.constants import PROMPT_TEMPLATES
 
 class ChatHandler:
     """Handles chat queries with text, image, or both, maintaining conversation history."""
@@ -16,9 +17,12 @@ class ChatHandler:
     conversation_history: List[Dict[str, str]] = [
         {
             "role": "assistant",
-            "content": "Hello! I'm your AI assistant. How can I help you today?",
+            "content": PROMPT_TEMPLATES["INITIAL_GREETING"],
         }
     ]
+    # prompt variables
+    CHATBOT_RESPONSE_PROMPT = PROMPT_TEMPLATES["CHATBOT_RESPONSE_PROMPT"]
+    IMAGE_SELECTION_PROMPT = PROMPT_TEMPLATES["IMAGE_SELECTION_PROMPT"]
 
     def __init__(self, collection) -> None:
         """Initialize ChatHandler with dependencies.
@@ -56,34 +60,56 @@ class ChatHandler:
         Raises:
             HTTPException: If processing the query fails.
         """
+        # append query to chat history
         self.conversation_history.append({"role": "user", "content": query})
+
+        # make retrieved decision
         try:
             should_retrieve = retrieve_decision(query)
+        except ValueError as e:
+            raise HTTPException(status_code=500, detail=f"Decision error: {str(e)}")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Decision error: {e}")
+            raise HTTPException(status_code=500, detail=f"Unexpected error in decision: {str(e)}")
 
+        # only conversation
         if not should_retrieve:
             try:
-                prompt = self.build_prompt() + "Assistant: "
+                # build prompt with memory
+                prompt = self.build_prompt() + ChatHandler.CHATBOT_RESPONSE_PROMPT
+
+                # generate response
                 response = self.llm_service.generate_response(prompt)
+
+                # save response to chat history
                 self.conversation_history.append(
                     {"role": "assistant", "content": response}
                 )
                 return ChatResponse(response=response)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"LLM error: {e}")
+
+        # conversation with retrieving
         else:
             try:
-                text_embedding = self.embedding_generator.generate_text_embedding(
-                    query
-                )
+                text_embedding = self.embedding_generator.generate_text_embedding(query)
                 results = self.collection.query(
                     query_embeddings=[text_embedding],
                     n_results=self.n_results,
                 )
+
+                # extract image_id and metadata
                 image_ids = results["ids"][0]
                 metadatas = results["metadatas"][0]
 
+                # Check if there is no results at all
+                if not image_ids:
+                    no_results_response = PROMPT_TEMPLATES['NO_RESULTS_RESPONSE'].format(query=query)
+                    self.conversation_history.append(
+                        {"role": "assistant", "content": no_results_response}
+                    )
+                    return ChatResponse(response=no_results_response, images=[])
+
+                # extract retrieved image info
                 image_info = [
                     {
                         "id": img_id,
@@ -93,37 +119,47 @@ class ChatHandler:
                     for img_id, meta in zip(image_ids, metadatas)
                 ]
 
-                prompt = (
-                    self.build_prompt()
-                    + "Assistant: Here are some images that might be relevant:\n"
-                )
+                # Initialize an empty string to accumulate the formatted image information.
+                retrieved_images = PROMPT_TEMPLATES['RESPONSE_TEXT_WITH_IMAGES']
                 for idx, info in enumerate(image_info, 1):
-                    prompt += f"{idx}. Description: {info['description']}, Tags: {info['tags']}\n"
-                prompt += (
-                    "\nBased on the query and conversation history, select the most relevant images "
-                    "to show. Respond with the numbers of the images to display (e.g., '1,3')."
+                    retrieved_images += f"{idx}. Description: {info['description']}, Tags: {info['tags']}\n"
+
+                #  build prompt to filter retrieved images
+                prompt = (
+                        self.build_prompt() +
+                        ChatHandler.IMAGE_SELECTION_PROMPT.format( query=query, retrieved_images=retrieved_images)
                 )
 
+                # response to filter (e.g., '1,3')
                 response = self.llm_service.generate_response(prompt)
-                selected_indices = [
-                    int(idx) for idx in response.split(",") if idx.strip().isdigit()
-                ]
+
+                selected_indices = [int(idx) for idx in response.split(",") if idx.strip().isdigit()]
                 selected_image_ids = [
                     image_info[idx - 1]["id"]
                     for idx in selected_indices
                     if 1 <= idx <= len(image_info)
                 ]
+                if not selected_image_ids:
+                    no_selection_response = PROMPT_TEMPLATES['NO_SELECTION_RESPONSE'].format(query=query)
+                    self.conversation_history.append(
+                        {"role": "assistant", "content": no_selection_response}
+                    )
+                    return ChatResponse(response=no_selection_response, images=[])
 
                 image_urls = [
                     f"/images/{os.path.basename(img_id)}" for img_id in selected_image_ids
                 ]
-                response_text = "Here are some relevant images:"
-                self.conversation_history.append(
-                    {"role": "assistant", "content": f"{response_text} [Images shown]"}
-                )
-                return ChatResponse(response=response_text, images=image_urls)
+                response_text = "Here are some relevant images:\n"
+                for i, (img_id, info) in enumerate(
+                        [(img_id, info) for img_id in selected_image_ids for info in image_info if
+                         info["id"] == img_id], 1
+                ):
+                    response_text += f"{i}. {info['description']} \n"
+
+                return ChatResponse(response=response_text, images = image_urls, )
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Image selection error: {e}")
+
 
     def handle_image_query(self, image: UploadFile) -> ChatResponse:
         """Handle image-only queries.
@@ -140,16 +176,14 @@ class ChatHandler:
         try:
             image_path = self.file_manager.save_image(image)
 
-            prompt = (
-                "Provide a concise, detailed description of this image in 2-3 sentences, "
-                "focusing on key objects, actions, colors, and the overall scene."
-            )
+            # generate image description
+            prompt = PROMPT_TEMPLATES['IMAGE_DESCRIPTION_PROMPT']
             description = self.llm_service.generate_image_response(image_path, prompt)
 
             self.conversation_history.append(
                 {"role": "user", "content": f"[Image uploaded: {description}]"}
             )
-            response_message = f"{description}\n\nWould you like to see similar images from the gallery?"
+            response_message = PROMPT_TEMPLATES['ASK_SIMILAR_IMAGES_PROMPT'].format(description=description)
             self.conversation_history.append(
                 {"role": "assistant", "content": response_message}
             )
@@ -159,6 +193,7 @@ class ChatHandler:
             if "image_path" in locals() and os.path.exists(image_path):
                 os.remove(image_path)
             raise HTTPException(status_code=500, detail=f"Image-only search error: {e}")
+
 
     def handle_multimodal_query(self, query: str, image: UploadFile) -> ChatResponse:
         """Handle queries with both text and image.
@@ -176,50 +211,43 @@ class ChatHandler:
         try:
             image_path = self.file_manager.save_image(image)
 
-            image_prompt = (
-                "Provide a concise, detailed description of this image in 2-3 sentences, "
-                "focusing on key objects, actions, colors, and the overall scene."
-            )
-            description = self.llm_service.generate_image_response(
-                image_path, image_prompt
-            )
+            image_prompt = PROMPT_TEMPLATES['IMAGE_DESCRIPTION_PROMPT']
+            description = self.llm_service.generate_image_response(image_path, image_prompt)
 
             self.conversation_history.append(
-                {"role": "user", "content": f"{query} [Image uploaded: {description}]"}
+                {"role": "user", "content": f"query: {query}, [Image uploaded: {description}]"}
             )
 
+            # make retrieval decision
             should_retrieve = retrieve_decision(query)
 
+            # only conversation
             if not should_retrieve:
-                prompt = self.build_prompt() + "Assistant: "
+                prompt = self.build_prompt() + ChatHandler.CHATBOT_RESPONSE_PROMPT
                 response = self.llm_service.generate_image_response(image_path, prompt)
                 self.conversation_history.append(
                     {"role": "assistant", "content": response}
                 )
                 os.remove(image_path)
                 return ChatResponse(response=response)
-            else:
-                text_embedding = self.embedding_generator.generate_text_embedding(
-                    query
-                )
-                image_embedding = self.embedding_generator.generate_embedding(
-                    image_path
-                )
 
-                text_results = self.collection.query(
-                    query_embeddings=[text_embedding],
-                    n_results=self.n_results,
-                )
+            # conversation with retrieving
+            else:
+                # get embedding for retrieval
+                text_embedding = self.embedding_generator.generate_text_embedding(query)
+                image_embedding = self.embedding_generator.generate_embedding(image_path)
+
+                # retrieve from text
+                text_results = self.collection.query(query_embeddings=[text_embedding], n_results=self.n_results)
                 text_image_ids = text_results["ids"][0]
                 text_metadatas = text_results["metadatas"][0]
 
-                image_results = self.collection.query(
-                    query_embeddings=[image_embedding],
-                    n_results=self.n_results,
-                )
+                # retrieve from image
+                image_results = self.collection.query(query_embeddings=[image_embedding], n_results=self.n_results)
                 image_image_ids = image_results["ids"][0]
                 image_metadatas = image_results["metadatas"][0]
 
+                # combine retrieved result
                 combined_image_ids = list(set(text_image_ids + image_image_ids))
                 combined_metadatas = []
                 for img_id in combined_image_ids:
@@ -230,6 +258,7 @@ class ChatHandler:
                         idx = image_image_ids.index(img_id)
                         combined_metadatas.append(image_metadatas[idx])
 
+                # extract from combined image
                 image_info = [
                     {
                         "id": img_id,
@@ -239,18 +268,21 @@ class ChatHandler:
                     for img_id, meta in zip(combined_image_ids, combined_metadatas)
                 ]
 
-                prompt = (
-                    self.build_prompt()
-                    + "Assistant: Here are some images retrieved based on the query and uploaded image:\n"
-                )
+
+                # Initialize an empty string to accumulate the formatted image information.
+                retrieved_images = ""
                 for idx, info in enumerate(image_info, 1):
-                    prompt += f"{idx}. Description: {info['description']}, Tags: {info['tags']}\n"
-                prompt += (
-                    "\nBased on the query, uploaded image, and conversation history, select the most "
-                    "relevant images to show. Respond with the numbers of the images to display (e.g., '1,3')."
+                    retrieved_images += f"{idx}. Description: {info['description']}, Tags: {info['tags']}\n"
+
+                # build prompt to filter retrieved images
+                prompt = (
+                        self.build_prompt() +
+                        ChatHandler.IMAGE_SELECTION_PROMPT.format(query=query, retrieved_images=retrieved_images)
                 )
 
+                # filter retrieved image
                 response = self.llm_service.generate_response(prompt)
+
                 selected_indices = [
                     int(idx) for idx in response.split(",") if idx.strip().isdigit()
                 ]
@@ -260,12 +292,21 @@ class ChatHandler:
                     if 1 <= idx <= len(image_info)
                 ]
 
+                #get url to show images
                 image_urls = [
                     f"/images/{os.path.basename(img_id)}" for img_id in selected_image_ids
                 ]
-                response_text = "Here are some relevant images based on your query and uploaded image:"
+
+
+                response_text = PROMPT_TEMPLATES['RESPONSE_TEXT_WITH_IMAGES_MULTIMODAL']
+                for i, (img_id, info) in enumerate(
+                        [(img_id, info) for img_id in selected_image_ids for info in image_info if
+                         info["id"] == img_id], 1
+                ):
+                    response_text += f"{i}. {info['description']}\n"
+
                 self.conversation_history.append(
-                    {"role": "assistant", "content": f"{response_text} [Images shown]"}
+                    {"role": "assistant", "content": response_text}
                 )
                 os.remove(image_path)
                 return ChatResponse(response=response_text, images=image_urls)

@@ -1,5 +1,7 @@
+import os
 from typing import List
 
+import torch
 from PIL import Image
 from sentence_transformers import SentenceTransformer
 
@@ -18,7 +20,8 @@ class EmbeddingGenerator:
     def _initialize(self) -> None:
         """Initialize the EmbeddingGenerator with the CLIP model."""
         try:
-            self.clip_model = SentenceTransformer("clip-ViT-B-32")
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.clip_model = SentenceTransformer("clip-ViT-B-32", device=device)
         except Exception as e:
             raise RuntimeError(f"Failed to initialize EmbeddingGenerator: {e}")
 
@@ -34,6 +37,10 @@ class EmbeddingGenerator:
         Raises:
             ValueError: If text encoding fails.
         """
+        # Ensure the text parameter isn’t empty
+        if not text or not isinstance(text, str):
+            raise ValueError("Text must be a non-empty string")
+
         try:
             return self.clip_model.encode(text).tolist()
         except Exception as e:
@@ -47,12 +54,13 @@ class EmbeddingGenerator:
 
         Returns:
             List[float]: Embedding vector for the image.
-
-        Raises:
-            ValueError: If image loading or embedding generation fails.
         """
+        # Verify that image_path exists
+        if not isinstance(image_path, str) or not os.path.isfile(image_path):
+            raise ValueError(f"Invalid image path: {image_path}")
+
         try:
-            image = Image.open(image_path)
+            image = Image.open(image_path).convert("RGB")
             return self.clip_model.encode(image).tolist()
         except Exception as e:
             raise ValueError(f"Failed to generate embedding for {image_path}: {e}")
