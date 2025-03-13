@@ -34,8 +34,8 @@ Before running the project, ensure you have the following installed:
 
 1. **Clone the Repository**:
    ```bash
-   git clone --single-branch -- branch pritam_30189_final_project https://github.com/BJIT-Academy-24/YSD_B4_AI_Pritam/tree/pritam_30189_final_project
-   cd YSD_B4_AI_Pritam
+   git clone https://github.com/pritamgold/Conversational-Memory-Bot.git
+   cd Conversational-Memory-Bot
    ```
 
 2. **Set Up a Virtual Environment** (optional but recommended):
